@@ -30,6 +30,7 @@ jobs:
             .#nixosConfigurations.switch-lite.config.system.build.toplevel \
             --no-link \
             --print-out-paths \
+            --log-format raw \
             -v \
             2>&1 | tee build.log
 
@@ -37,7 +38,19 @@ jobs:
           nix build \
             .#packages.aarch64-linux.kernel \
             --out-link result-kernel \
-            -v
+            --log-format raw \
+            -v \
+            2>&1 | tee kernel-build.log
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            kernel-build.log
+          retention-days: 7
 
       - name: Collect boot files
         run: |
