@@ -8,8 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    # Kernel + full closure can take a while; give it plenty of time
+    runs-on: ubuntu-24.04-arm  # native aarch64 – no QEMU needed
     timeout-minutes: 360
 
     permissions:
@@ -23,27 +22,12 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v14
         with:
           extra-conf: |
-            extra-platforms = aarch64-linux
             extra-experimental-features = nix-command flakes
-
-      - name: Set up QEMU for aarch64
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Register binfmt handlers
-        run: |
-          # DeterminateSystems installer already enables flakes; just make sure
-          # the binfmt handler for aarch64 is active (setup-qemu-action does
-          # this, but let's verify).
-          ls /proc/sys/fs/binfmt_misc/ | grep -q aarch64 && echo "aarch64 binfmt OK" \
-            || echo "WARNING: aarch64 binfmt not registered"
 
       - name: Build kernel + NixOS system
         run: |
           nix build \
             .#nixosConfigurations.switch-lite.config.system.build.toplevel \
-            --system aarch64-linux \
             --no-link \
             --print-out-paths \
             -v \
@@ -51,7 +35,7 @@ jobs:
 
           # Also build the standalone kernel output (contains uImage + DTBs)
           nix build \
-            .#packages.x86_64-linux.kernel \
+            .#packages.aarch64-linux.kernel \
             --out-link result-kernel \
             -v
 
@@ -90,7 +74,6 @@ jobs:
           # Resolve the toplevel store path
           TOPLEVEL=$(nix build \
             .#nixosConfigurations.switch-lite.config.system.build.toplevel \
-            --system aarch64-linux \
             --no-link \
             --print-out-paths)
 

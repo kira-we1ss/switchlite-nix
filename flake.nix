@@ -14,13 +14,9 @@
     #   nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel
     # ---------------------------------------------------------------
     nixosConfigurations.switch-lite = nixpkgs.lib.nixosSystem {
-      # Target architecture
       system = "aarch64-linux";
 
       modules = [
-        # Tell NixOS to cross-compile from x86_64 (your ThinkPad)
-        { nixpkgs.buildPlatform.system = "x86_64-linux"; }
-
         ./hardware-configuration.nix
         ./configuration.nix
 
@@ -37,15 +33,12 @@
 
     # ---------------------------------------------------------------
     # Convenience: build just the kernel package
-    #   nix build .#packages.x86_64-linux.kernel
+    #   nix build .#packages.aarch64-linux.kernel
     # ---------------------------------------------------------------
-    packages.x86_64-linux.kernel =
+    packages.aarch64-linux.kernel =
       let
-        pkgsCross = import nixpkgs {
-          system      = "x86_64-linux";
-          crossSystem = { config = "aarch64-unknown-linux-gnu"; };
-        };
+        pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
-        pkgsCross.callPackage ./modules/l4t-kernel.nix {};
+        pkgs.callPackage ./modules/l4t-kernel.nix {};
   };
 }
