@@ -3,8 +3,8 @@
 NixOS configuration for a Nintendo Switch Lite (Mariko / Tegra T214) running
 alongside Atmosphère CFW as a dual-boot setup via hekate.
 
-> **Status:** Work in progress. All source hashes are pinned. You can proceed
-> directly to [Build NixOS](#4-build-nixos) after partitioning.
+> **Status:** Work in progress. All source hashes are pinned. CI builds and
+> publishes releases automatically on every push to `main`.
 
 ---
 
@@ -15,9 +15,6 @@ alongside Atmosphère CFW as a dual-boot setup via hekate.
 | Switch Lite with mod chip | HWFLY, SX Core, etc. – RCM-only units cannot use hekate's Linux Flash tool |
 | Atmosphère + hekate ≥ 6.0.6 | Already installed; Hekate manages the boot menu |
 | microSD card ≥ 32 GB | 16 GB for NixOS root + space for Atmosphère |
-| ThinkPad (x86_64) running NixOS | Used for cross-compilation |
-| Nix ≥ 2.18 with flakes enabled | `nix.settings.experimental-features = ["nix-command" "flakes"]` |
-| `binfmt` / QEMU aarch64 registered | Optional but speeds up interpreted builds |
 
 ---
 
@@ -40,7 +37,7 @@ alongside Atmosphère CFW as a dual-boot setup via hekate.
 5. Boot back to HorizonOS and run **Nyx Options → Dump Joy-Con BT** (required
    even on Switch Lite – it dumps factory touch/IMU calibration data).
 
-Label the partitions when formatting them on your ThinkPad:
+Label the partitions when formatting them on your build machine:
 
 ```bash
 # Identify the card – DO NOT use the wrong device
@@ -53,93 +50,41 @@ mkswap    -L   swap      /dev/sdXp3
 
 ---
 
-## 2. Pinning sources
+## 2. Get the build artifacts
 
-All 8 kernel source repos are already pinned to specific commit SHAs with
-verified hashes in `modules/l4t-kernel.nix`. No manual prefetching is needed.
+CI builds and publishes a GitHub Release on every push to `main`. Download the
+latest release assets from the [Releases page](../../releases/latest):
 
-If you ever want to update to newer upstream commits, re-run:
-
-```bash
-nix run nixpkgs#nix-prefetch-github -- <owner> <repo> --rev <new-sha>
-nix run nixpkgs#nix-prefetch-git -- <url> --rev refs/heads/<branch>
-```
-
-and replace the `rev` + `hash` fields in `modules/l4t-kernel.nix`.
-
----
-
-## 3. Enable cross-compilation on your ThinkPad
-
-Add to your ThinkPad's NixOS config:
-
-```nix
-# /etc/nixos/configuration.nix (ThinkPad)
-boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
-nix.settings.extra-platforms = [ "aarch64-linux" ];
-```
-
-Then rebuild: `sudo nixos-rebuild switch`.
-
-This registers QEMU binfmt handlers so Nix can run aarch64 binaries during
-the build (needed for some configure scripts). Pure cross-compilation (no
-QEMU) works for the kernel but some packages fall back to emulation.
+| File | Purpose |
+|---|---|
+| `uImage` | Kernel image – copy to FAT32 partition root |
+| `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
+| `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
+| `nixos-rootfs.tar.zst` | Full NixOS root closure – extract to ext4 partition |
+| `hekate_ipl.ini.snippet` | Paste into `hekate_ipl.ini` on the FAT32 partition |
 
 ---
 
-## 4. Build NixOS
+## 3. Deploy to the SD card
 
 ```bash
-# From the repo directory on your ThinkPad:
-nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel \
-  --system aarch64-linux
-```
-
-This will take a while the first time (it cross-compiles the entire closure).
-Subsequent builds are cached.
-
-To build just the kernel:
-
-```bash
-nix build .#kernel
-```
-
----
-
-## 5. Deploy to the SD card
-
-Mount the NixOS ext4 partition:
-
-```bash
-sudo mount /dev/sdXp2 /mnt
-sudo mkdir -p /mnt/boot
-```
-
-Copy the NixOS closure to the SD card using `nixos-install` or manually:
-
-```bash
-# The easiest way:
-sudo nixos-install \
-  --flake .#switch-lite \
-  --root /mnt \
-  --no-bootloader   # hekate is the bootloader; skip NixOS bootloader install
-```
-
-Copy the kernel and DTB to the FAT32 partition:
-
-```bash
+# Mount SD card partitions
 sudo mount /dev/sdXp1 /mnt/fat32
-# uImage
-sudo cp result/boot/uImage /mnt/fat32/uImage
-# DTBs – hekate expects nx-plat.dtimg or individual DTBs
-# Switch Lite (vali = HDH-001):
-sudo cp result/boot/tegra210b01-vali.dtb /mnt/fat32/tegra210b01-vali.dtb
-sudo umount /mnt/fat32
+sudo mount /dev/sdXp2 /mnt/nixos
+
+# Boot files
+sudo cp uImage /mnt/fat32/uImage
+sudo cp tegra210b01-vali.dtb /mnt/fat32/
+
+# NixOS rootfs
+sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
+
+sudo umount /mnt/fat32 /mnt/nixos
 ```
 
 ---
 
-## 6. Add a hekate boot entry
+## 4. Add a hekate boot entry
 
 Add the following to `hekate_ipl.ini` on the FAT32 partition:
 
@@ -156,6 +101,34 @@ icon=bootloader/res/icon_payload.bmp
 Adjust the `root=` path if your NixOS partition is not `p2`.
 
 Boot from hekate → **More Configs** → **NixOS**.
+
+---
+
+## Building locally
+
+If you want to build from source instead of using CI artifacts:
+
+```bash
+# Full NixOS system
+nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel
+
+# Kernel only (uImage + DTBs)
+nix build .#packages.x86_64-linux.kernel
+```
+
+Requires Nix ≥ 2.18 with flakes enabled and QEMU aarch64 binfmt registered.
+
+### Updating kernel source pins
+
+All 8 kernel source repos are pinned to specific commit SHAs in
+`modules/l4t-kernel.nix`. To update a pin:
+
+```bash
+nix run nixpkgs#nix-prefetch-github -- <owner> <repo> --rev <new-sha>
+nix run nixpkgs#nix-prefetch-git -- <url> --rev refs/heads/<branch>
+```
+
+Then replace the `rev` + `hash` fields in `modules/l4t-kernel.nix`.
 
 ---
 
@@ -180,13 +153,14 @@ Boot from hekate → **More Configs** → **NixOS**.
 
 ```
 switch-nix/
-├── flake.nix                  # Flake entry point, cross-compilation setup
-├── flake.lock                 # Pinned nixpkgs (generated by nix flake lock)
-├── configuration.nix          # systemd + GNOME + SSH + networking
-├── hardware-configuration.nix # Tegra T214 hardware, SD card layout
+├── .github/workflows/build.yml  # GH Actions CI – builds and publishes releases
+├── flake.nix                    # Flake entry point, cross-compilation setup
+├── flake.lock                   # Pinned nixpkgs (generated by nix flake lock)
+├── configuration.nix            # systemd + GNOME + SSH + networking
+├── hardware-configuration.nix   # Tegra T214 hardware, SD card layout
 ├── modules/
-│   └── l4t-kernel.nix         # Custom L4T 4.9 kernel derivation
-└── README.md                  # This file
+│   └── l4t-kernel.nix           # Custom L4T 4.9 kernel derivation
+└── README.md                    # This file
 ```
 
 ---
