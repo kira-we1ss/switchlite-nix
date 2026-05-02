@@ -1,0 +1,161 @@
+name: Build NixOS for Switch Lite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Kernel + full closure can take a while; give it plenty of time
+    timeout-minutes: 360
+
+    permissions:
+      contents: write  # needed to create GitHub Releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v14
+        with:
+          extra-conf: |
+            extra-platforms = aarch64-linux
+            extra-experimental-features = nix-command flakes
+
+      - name: Set up QEMU for aarch64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Register binfmt handlers
+        run: |
+          # DeterminateSystems installer already enables flakes; just make sure
+          # the binfmt handler for aarch64 is active (setup-qemu-action does
+          # this, but let's verify).
+          ls /proc/sys/fs/binfmt_misc/ | grep -q aarch64 && echo "aarch64 binfmt OK" \
+            || echo "WARNING: aarch64 binfmt not registered"
+
+      - name: Build kernel + NixOS system
+        run: |
+          nix build \
+            .#nixosConfigurations.switch-lite.config.system.build.toplevel \
+            --system aarch64-linux \
+            --no-link \
+            --print-out-paths \
+            -v \
+            2>&1 | tee build.log
+
+          # Also build the standalone kernel output (contains uImage + DTBs)
+          nix build \
+            .#packages.x86_64-linux.kernel \
+            --out-link result-kernel \
+            -v
+
+      - name: Collect boot files
+        run: |
+          mkdir -p release-assets
+
+          # uImage
+          cp result-kernel/boot/uImage release-assets/uImage
+
+          # DTBs – copy all that exist
+          for dtb in \
+              tegra210b01-vali \
+              tegra210b01-fric \
+              tegra210-odin \
+              tegra210b01-odin; do
+            f="result-kernel/boot/${dtb}.dtb"
+            [ -f "$f" ] && cp "$f" "release-assets/${dtb}.dtb" && echo "Copied ${dtb}.dtb"
+          done
+
+          # hekate boot entry snippet for convenience
+          cat > release-assets/hekate_ipl.ini.snippet <<'EOF'
+          [NixOS]
+          l=/uImage
+          r=/tegra210b01-vali.dtb
+          ; Switch Lite fric variant – try this if vali doesn't POST:
+          ; r=/tegra210b01-fric.dtb
+          k=fbcon=map:0 video=1280x720@60 console=tty0 root=/dev/mmcblk0p2 rw rootwait quiet splash
+          icon=bootloader/res/icon_payload.bmp
+          EOF
+
+          ls -lh release-assets/
+
+      - name: Build NixOS root tarball
+        run: |
+          # Resolve the toplevel store path
+          TOPLEVEL=$(nix build \
+            .#nixosConfigurations.switch-lite.config.system.build.toplevel \
+            --system aarch64-linux \
+            --no-link \
+            --print-out-paths)
+
+          echo "Toplevel: $TOPLEVEL"
+
+          # Collect the full closure into a list of store paths
+          nix-store --query --requisites "$TOPLEVEL" > /tmp/closure-paths.txt
+          wc -l /tmp/closure-paths.txt
+
+          # Pack as a tar.zst – exclude nix-support dirs and unnecessary docs
+          echo "Creating rootfs tarball…"
+          sudo tar \
+            --create \
+            --zstd \
+            --file release-assets/nixos-rootfs.tar.zst \
+            --files-from /tmp/closure-paths.txt \
+            --transform 's|^/||' \
+            --numeric-owner
+
+          ls -lh release-assets/nixos-rootfs.tar.zst
+
+      - name: Upload artifacts (PR builds)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-nixos
+          path: release-assets/
+          retention-days: 30
+
+      - name: Create GitHub Release (push to main/master)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "NixOS Switch Lite – build #${{ github.run_number }}"
+          body: |
+            Automated build from commit ${{ github.sha }}.
+
+            ## Files
+
+            | File | Purpose |
+            |---|---|
+            | `uImage` | Kernel image – copy to FAT32 partition root |
+            | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
+            | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
+            | `tegra210-odin.dtb` | DTB for OG Switch |
+            | `tegra210b01-odin.dtb` | DTB for OG Switch (Mariko revision) |
+            | `nixos-rootfs.tar.zst` | Full NixOS root closure – extract to ext4 partition |
+            | `hekate_ipl.ini.snippet` | Paste into `hekate_ipl.ini` on the FAT32 partition |
+
+            ## Flashing
+
+            ```bash
+            # Mount SD card partitions
+            sudo mount /dev/sdXp1 /mnt/fat32
+            sudo mount /dev/sdXp2 /mnt/nixos
+
+            # Boot files
+            sudo cp uImage /mnt/fat32/uImage
+            sudo cp tegra210b01-vali.dtb /mnt/fat32/
+
+            # NixOS rootfs
+            sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
+
+            sudo umount /mnt/fat32 /mnt/nixos
+            ```
+          files: release-assets/*
+          fail_on_unmatched_files: true
