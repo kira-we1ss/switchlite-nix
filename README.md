@@ -113,10 +113,10 @@ If you want to build from source instead of using CI artifacts:
 nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel
 
 # Kernel only (uImage + DTBs)
-nix build .#packages.x86_64-linux.kernel
+nix build .#packages.aarch64-linux.kernel
 ```
 
-Requires Nix ≥ 2.18 with flakes enabled and QEMU aarch64 binfmt registered.
+Requires Nix ≥ 2.18 with flakes enabled.
 
 ### Updating kernel source pins
 
