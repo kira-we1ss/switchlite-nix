@@ -99,6 +99,16 @@ jobs:
 
           ls -lh release-assets/nixos-rootfs.tar.zst
 
+          # GitHub releases have a 2 GB per-file limit.
+          # Split into 1900 MB chunks (named .tar.zst.part00, .part01, …)
+          SIZE=$(stat -c%s release-assets/nixos-rootfs.tar.zst)
+          if [ "$SIZE" -gt $((1900 * 1024 * 1024)) ]; then
+            echo "Rootfs is >1900 MB, splitting into chunks…"
+            split -b 1900m release-assets/nixos-rootfs.tar.zst release-assets/nixos-rootfs.tar.zst.part
+            rm release-assets/nixos-rootfs.tar.zst
+            ls -lh release-assets/nixos-rootfs.tar.zst.part*
+          fi
+
       - name: Collect full nix derivation logs on failure
         if: failure()
         run: |
@@ -150,7 +160,7 @@ jobs:
             | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
             | `tegra210-odin.dtb` | DTB for OG Switch |
             | `tegra210b01-odin.dtb` | DTB for OG Switch (Mariko revision) |
-            | `nixos-rootfs.tar.zst` | Full NixOS root closure – extract to ext4 partition |
+            | `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure – extract to ext4 partition (reassemble parts first if split) |
             | `hekate_ipl.ini.snippet` | Paste into `hekate_ipl.ini` on the FAT32 partition |
 
             ## Flashing
@@ -164,7 +174,8 @@ jobs:
             sudo cp uImage /mnt/fat32/uImage
             sudo cp tegra210b01-vali.dtb /mnt/fat32/
 
-            # NixOS rootfs
+            # NixOS rootfs (may be split into .part* chunks if >1900 MB)
+            # Reassemble with: cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
             sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
 
             sudo umount /mnt/fat32 /mnt/nixos
