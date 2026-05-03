@@ -84,11 +84,7 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    # fbdev is listed so NixOS doesn't pull in the unfree nvidia package.
-    # The actual driver used is nvidia_drv.so from tegra-l4t-libs, loaded
-    # via the ModulePath. -ignoreABI lets the L4T driver (ABI 24) load on
-    # xorg-server 1.21 (ABI 25).
-    videoDrivers = [ "fbdev" ];
+    videoDrivers = [ "fbdev" ]; # prevents nixpkgs nvidia module from loading
 
     displayManager.gdm = {
       enable  = true;
@@ -99,49 +95,70 @@
 
     displayManager.xserverArgs = [ "-ignoreABI" ];
 
-    # Use NixOS's generated Device/Screen sections but override the driver
-    # and options to use the L4T nvidia driver.
-    deviceSection = ''
-      Driver      "nvidia"
-      Option      "AllowUnofficialGLXProtocol" "true"
-      Option      "DPMS" "false"
-      Option      "AllowEmptyInitialConfiguration" "true"
-      Option      "Monitor-DSI-0" "Monitor0"
-    '';
-
-    screenSection = ''
-      DefaultDepth 24
-      Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
-      SubSection  "Display"
-        Depth     24
-      EndSubSection
-    '';
-
-    extraConfig = ''
+    # Write the entire xorg.conf from scratch to avoid NixOS generating
+    # conflicting Driver/Screen sections. The L4T nvidia_drv.so requires
+    # the ModulePath to appear before the driver is loaded.
+    config = ''
       Section "Files"
-        ModulePath "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
-        ModulePath "/run/current-system/sw/lib/xorg/modules"
+        FontPath    "/nix/store/jzhrgs56g067ck48rykl8xxlc7r5nx5h-font-cursor-misc-1.0.4/lib/X11/fonts/misc"
+        ModulePath  "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
+        ModulePath  "/run/current-system/sw/lib/xorg/modules"
+      EndSection
+
+      Section "ServerFlags"
+        Option "AllowMouseOpenFail" "on"
+        Option "DontZap" "on"
       EndSection
 
       Section "Module"
-        Disable     "dri"
-        SubSection  "extmod"
-          Option    "omit xfree86-dga"
+        Disable    "dri"
+        SubSection "extmod"
+          Option   "omit xfree86-dga"
         EndSubSection
       EndSection
 
+      Section "InputClass"
+        Identifier "touchscreen rotate"
+        MatchProduct "touchscreen"
+        Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
+      EndSection
+
+      Section "InputClass"
+        Identifier "libinput touchscreen"
+        MatchIsTouchscreen "on"
+        Driver "libinput"
+      EndSection
+
+      Section "Device"
+        Identifier "Tegra0"
+        Driver     "nvidia"
+        Option     "AllowUnofficialGLXProtocol" "true"
+        Option     "DPMS" "false"
+        Option     "AllowEmptyInitialConfiguration" "true"
+        Option     "Monitor-DSI-0" "Monitor0"
+      EndSection
+
       Section "Monitor"
-        Identifier  "Monitor0"
-        ModelName   "DFP-0"
+        Identifier "Monitor0"
+        ModelName  "DFP-0"
+      EndSection
+
+      Section "Screen"
+        Identifier   "Screen0"
+        Device       "Tegra0"
+        Monitor      "Monitor0"
+        DefaultDepth 24
+        Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
+        SubSection   "Display"
+          Depth      24
+        EndSubSection
+      EndSection
+
+      Section "ServerLayout"
+        Identifier "Layout0"
+        Screen     "Screen0"
       EndSection
     '';
-
-    # Touch coordinate transform for 270° (CCW) rotation.
-    inputClassSections = [''
-      Identifier "touchscreen rotate"
-      MatchProduct "touchscreen"
-      Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
-    ''];
   };
 
   # Tegra proprietary userspace libs (EGL, CUDA, display libs).
