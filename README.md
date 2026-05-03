@@ -60,15 +60,17 @@ latest release assets from the [Releases page](../../releases/latest):
 | `uImage` | Kernel image – copy to FAT32 partition root |
 | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
 | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
-| `nixos-rootfs.tar.zst` | Full NixOS root closure – extract to ext4 partition |
+| `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure – may be split into chunks (see below) |
 | `hekate_ipl.ini.snippet` | Paste into `hekate_ipl.ini` on the FAT32 partition |
 
 ---
 
 ## 3. Deploy to the SD card
 
+Run all commands on your PC with the SD card mounted:
+
 ```bash
-# Mount SD card partitions
+# Mount SD card partitions (adjust /dev/sdX to your card)
 sudo mount /dev/sdXp1 /mnt/fat32
 sudo mount /dev/sdXp2 /mnt/nixos
 
@@ -76,8 +78,10 @@ sudo mount /dev/sdXp2 /mnt/nixos
 sudo cp uImage /mnt/fat32/uImage
 sudo cp tegra210b01-vali.dtb /mnt/fat32/
 
-# NixOS rootfs
-sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
+# NixOS rootfs – if split into .part* chunks (likely), reassemble and extract:
+cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
+# If a single file (small builds):
+# sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
 
 sudo umount /mnt/fat32 /mnt/nixos
 ```
