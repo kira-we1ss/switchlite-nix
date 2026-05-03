@@ -12,7 +12,7 @@
 # mainline. The tarball is hosted as a GitHub release asset in this repo.
 
 { lib, stdenvNoCC, fetchurl, autoPatchelfHook
-, xorg, libdrm
+, xorg, libdrm, glibc
 }:
 
 let
@@ -31,7 +31,7 @@ stdenvNoCC.mkDerivation {
 
   # autopatchelf will fix up the .so RPATH so the tegra libs find each other.
   nativeBuildInputs = [ autoPatchelfHook ];
-  buildInputs = [ xorg.libX11 xorg.libXext libdrm stdenvNoCC.cc.libc ];
+  buildInputs = [ xorg.libX11 xorg.libXext libdrm glibc ];
 
   # The tarball has paths like usr/lib/..., etc/X11/..., lib/firmware/...
   # relative to the rootfs root. Unpack and reorganise into $out.
