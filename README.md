@@ -80,7 +80,7 @@ sudo mount /dev/sdXp1 /mnt/fat32
 sudo mount /dev/sdXp2 /mnt/nixos
 
 # Replace the L4T Ubuntu kernel with ours
-sudo cp uImage /mnt/fat32/switchroot/ubuntu/uImage
+sudo cp uImage /mnt/fat32/switchroot/ubuntu-noble/uImage
 
 # NixOS rootfs – if split into .part* chunks (likely), reassemble and extract:
 cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
@@ -101,8 +101,7 @@ Add the following to `hekate_ipl.ini` on the FAT32 partition (or use the provide
 ```ini
 [NixOS]
 l4t=1
-boot_prefixes=/switchroot/ubuntu/
-id=nixos
+boot_prefixes=/switchroot/ubuntu-noble/
 rootdev=mmcblk0p2
 rootfstype=ext4
 icon=bootloader/res/icon_payload.bmp
