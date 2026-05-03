@@ -153,7 +153,7 @@
       Identifier "Layout0"
       Screen     "Screen0"
     EndSection
-  '';  };
+  '';
 
   # Tegra proprietary userspace libs (EGL, CUDA, display libs).
   hardware.opengl = {
