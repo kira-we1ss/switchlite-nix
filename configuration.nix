@@ -93,6 +93,18 @@
 
     desktopManager.gnome.enable = true;
 
+    # Switch Lite display is physically portrait (720×1280).
+    # Rotate CW so the desktop renders in landscape (1280×720).
+    deviceSection = ''
+      Option "Rotate" "CW"
+    '';
+
+    screenSection = ''
+      Option "FlatPanel" "true"
+      SubSection "Display"
+        Modes "1280x720"
+      EndSubSection
+    '';
   };
 
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
