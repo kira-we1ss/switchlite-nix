@@ -12,105 +12,85 @@ alongside Atmosphère CFW as a dual-boot setup via hekate.
 
 | Requirement | Notes |
 |---|---|
-| Switch Lite with mod chip | HWFLY, SX Core, etc. – RCM-only units cannot use hekate |
-| Atmosphère + hekate ≥ 6.0.6 | Already installed; hekate manages the boot menu |
+| Switch Lite with mod chip | HWFLY, SX Core, etc. |
+| Atmosphère + hekate ≥ 6.0.6 | Already installed |
 | microSD card ≥ 32 GB | Recommended: 128 GB U3/A2 class |
-| Switchroot L4T Ubuntu installed | Required for the bootstack (`bl31.bin`, `bl33.bin`, U-Boot etc.) |
 
-> **This NixOS build relies on the Switchroot L4T Ubuntu bootstack.**
-> You must install L4T Ubuntu first (even briefly), which deploys the firmware files hekate needs to boot any Linux distro.
-> After that you replace the kernel and rootfs with ours.
+> **No Ubuntu required.** The bootstack (`bl31.bin`, `bl33.bin`, `boot.scr`) is vendored in this repo and included in every release.
 
 ---
 
-## 1. Install the Switchroot L4T Ubuntu bootstack
+## 1. Partition your SD card
 
-1. Download the latest [L4T Ubuntu Jammy image](https://download.switchroot.org/ubuntu-jammy/)
-2. Extract the 7z to the root of your FAT32 SD card partition
-3. In hekate go to **Tools → Partition SD Card → Flash Linux** — this installs `bl31.bin`, `bl33.bin`, BPMP firmware etc. into `bootloader/sys/l4t/`
-4. Run **Nyx Options → Dump Joy-Con BT** (required even on Switch Lite — dumps factory touch/IMU calibration)
-
-At this point L4T Ubuntu should boot. You can verify it works before proceeding.
-
----
-
-## 2. Partition your SD card
-
-You need at least:
+You need at minimum:
 
 | Partition | Filesystem | Purpose |
 |---|---|---|
-| p1 | FAT32 | Atmosphère, hekate, L4T bootstack (already set up by step 1) |
+| p1 | FAT32 | Atmosphère, hekate, bootstack |
 | p2 | ext4 | NixOS root |
 | p3 | linux-swap (optional) | Swap |
 
-If hekate's partition manager doesn't create the ext4/swap partitions, create them on your PC:
+Create from your PC:
 
 ```bash
-# Assuming the FAT32 partition already exists as p1
-parted /dev/sdX mkpart primary ext4 Xgib Ygib
-parted /dev/sdX mkpart primary linux-swap Ygib 100%
+parted /dev/sdX mkpart primary fat32 1MiB 6GiB
+parted /dev/sdX mkpart primary ext4 6GiB 54GiB
+parted /dev/sdX mkpart primary linux-swap 54GiB 58GiB
+mkfs.fat -F32 -n ATMOS /dev/sdXp1
 mkfs.ext4 -L nixos /dev/sdXp2
 mkswap -L swap /dev/sdXp3
 ```
 
+Also run **Nyx Options → Dump Joy-Con BT** in hekate (required even on Switch Lite — dumps factory touch/IMU calibration).
+
 ---
 
-## 3. Get the NixOS build artifacts
+## 2. Get the build artifacts
 
-Download the latest release assets from the [Releases page](../../releases/latest):
+Download the latest release from the [Releases page](../../releases/latest).
 
 | File | Purpose |
 |---|---|
-| `uImage` | Kernel image – replaces the L4T Ubuntu kernel |
-| `Image` | Raw uncompressed kernel (used by NixOS internals) |
-| `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
-| `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
-| `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure – may be split into chunks |
-| `hekate_ipl.ini.snippet` | Add to `hekate_ipl.ini` on the FAT32 partition |
+| `uImage` | Kernel (U-Boot wrapped) |
+| `initramfs` | NixOS initrd (U-Boot wrapped) |
+| `nx-plat.dtimg` | DTB image for all Switch variants |
+| `bl31.bin` | ARM Trusted Firmware |
+| `bl33.bin` | U-Boot |
+| `boot.scr` | U-Boot boot script |
+| `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure |
+| `hekate_ipl.ini.snippet` | hekate boot entry |
 
 ---
 
-## 4. Deploy to the SD card
+## 3. Deploy to the SD card
 
-Run all commands on your PC with the SD card mounted:
+Run all commands on your PC:
 
 ```bash
 sudo mount /dev/sdXp1 /mnt/fat32
 sudo mount /dev/sdXp2 /mnt/nixos
 
-# Replace the L4T Ubuntu kernel with ours
-sudo cp uImage /mnt/fat32/switchroot/ubuntu-noble/uImage
+# Copy bootstack
+sudo mkdir -p /mnt/fat32/switchroot/nixos
+sudo cp uImage initramfs nx-plat.dtimg bl31.bin bl33.bin boot.scr /mnt/fat32/switchroot/nixos/
 
-# NixOS rootfs – if split into .part* chunks (likely), reassemble and extract:
+# Add hekate boot entry
+sudo mkdir -p /mnt/fat32/bootloader/ini
+sudo cp hekate_ipl.ini.snippet /mnt/fat32/bootloader/ini/nixos.ini
+
+# Extract NixOS rootfs (reassemble parts if split)
 cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
-# If a single file:
+# If single file:
 # sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
-
-# The NixOS initrd handles first-boot activation automatically.
 
 sudo umount /mnt/fat32 /mnt/nixos
 ```
 
 ---
 
-## 5. Add a hekate boot entry
+## 4. Boot
 
-Add the following to `hekate_ipl.ini` on the FAT32 partition (or use the provided `hekate_ipl.ini.snippet`):
-
-```ini
-[NixOS]
-l4t=1
-boot_prefixes=/switchroot/ubuntu-noble/
-rootdev=mmcblk0p2
-rootfstype=ext4
-icon=bootloader/res/icon_payload.bmp
-```
-
-> **Note:** `rootdev=mmcblk0p2` assumes NixOS is on partition 2. Adjust if your layout differs.
-> The `boot_prefixes` path reuses the L4T Ubuntu bootstack — only the kernel (`Image`) and rootfs differ.
-
-Boot from hekate → **More Configs** → **NixOS**.
+In hekate → **More Configs** → **NixOS**.
 
 ---
 
