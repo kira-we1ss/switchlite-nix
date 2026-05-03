@@ -99,6 +99,20 @@ jobs:
 
           ls -lh release-assets/nixos-rootfs.tar.zst
 
+      - name: Collect full nix derivation logs on failure
+        if: failure()
+        run: |
+          # Extract failed .drv paths from build output and dump their full logs
+          for log in build.log kernel-build.log; do
+            [ -f "$log" ] || continue
+            grep -oP '/nix/store/[a-z0-9]+-[^'\'']+\.drv' "$log" | sort -u | while read drv; do
+              outfile="nix-drv-logs/$(basename "$drv").log"
+              mkdir -p nix-drv-logs
+              echo "=== $drv ===" > "$outfile"
+              nix log "$drv" >> "$outfile" 2>&1 || true
+            done
+          done
+
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -107,6 +121,7 @@ jobs:
           path: |
             build.log
             kernel-build.log
+            nix-drv-logs/
           retention-days: 7
 
       - name: Upload artifacts (PR builds)
