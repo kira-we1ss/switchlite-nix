@@ -63,9 +63,11 @@
   boot.initrd.kernelModules = [];
 
   # This kernel has all boot-critical drivers built-in (=y in defconfig):
-  # MMC/SDHCI, ext2/ext4, USB xHCI, tegra-dc, etc.
-  # Setting availableKernelModules to empty prevents NixOS from trying
-  # to locate any .ko files for the initrd, which would fail.
+  # MMC/SDHCI, ext2/ext4, USB xHCI, tegra-dc, dm_mod, etc.
+  # Disable default module inclusion and set available modules to empty
+  # so NixOS's makeModulesClosure doesn't try to locate .ko files that
+  # don't exist.
+  boot.initrd.includeDefaultModules = false;
   boot.initrd.availableKernelModules = lib.mkForce [];
 
   boot.kernelModules = [
