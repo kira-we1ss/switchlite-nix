@@ -69,6 +69,14 @@
     "xhci_tegra"
   ];
 
+  # ext2/ext4 are built into the kernel image (CONFIG_EXT2_FS=y, CONFIG_EXT4_FS=y),
+  # not available as loadable modules.  Override availableKernelModules to prevent
+  # NixOS's initrd builder from trying to locate them as .ko files.
+  boot.initrd.availableKernelModules = lib.mkForce [
+    "sdhci_tegra" "mmc_block" "sd_mod"
+    "tegra-dc" "xhci_tegra"
+  ];
+
   boot.kernelModules = [
     # Wi-Fi: BCM4354 on Switch Lite (Mariko)
     "brcmfmac"
