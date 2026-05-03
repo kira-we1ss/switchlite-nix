@@ -137,6 +137,17 @@ jobs:
           sudo mkdir -p "$ROOTFS/var/empty"
           sudo chmod 555 "$ROOTFS/var/empty"
 
+          # Extract NVIDIA L4T Xorg driver + Tegra libs from pinned release asset.
+          # These are proprietary blobs from Switchroot Kubuntu Noble and cannot
+          # be packaged in the Nix store.
+          echo "Fetching Tegra libs…"
+          curl -L --fail \
+            https://github.com/kira-we1ss/switchlite-nix/releases/download/tegra-libs-v1/tegra-libs.tar.gz \
+            -o /tmp/tegra-libs.tar.gz
+          sudo mkdir -p "$ROOTFS/usr/lib/xorg/modules/drivers"
+          sudo tar -xzf /tmp/tegra-libs.tar.gz -C "$ROOTFS"
+          echo "Tegra libs extracted: $(find "$ROOTFS/usr/lib/aarch64-linux-gnu/tegra" | wc -l) files"
+
           echo "Creating rootfs tarball…"
           sudo tar \
             --create \

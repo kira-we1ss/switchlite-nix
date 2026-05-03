@@ -84,6 +84,9 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
+    # Keep fbdev here so NixOS doesn't try to build the unfree nvidia package.
+    # The actual driver used is nvidia_drv.so, installed by CI from the Tegra
+    # libs tarball. We override the Device section via extraConfig below.
     videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
@@ -93,28 +96,61 @@
 
     desktopManager.gnome.enable = true;
 
-    # Switch Lite display is physically portrait (720×1280).
-    # Rotate CW so the desktop renders in landscape (1280×720).
-    deviceSection = ''
-      Option "Rotate" "CW"
-    '';
+    # Override the device/screen config to use the L4T nvidia driver.
+    # nvidia_drv.so lives at /usr/lib/xorg/modules/drivers/ (extracted by CI).
+    # The metamodes option handles rotation natively in the nvidia driver.
+    extraConfig = ''
+      Section "Files"
+        ModulePath "/usr/lib/xorg/modules/drivers"
+        ModulePath "/run/current-system/sw/lib/xorg/modules"
+      EndSection
 
-    screenSection = ''
-      Option "FlatPanel" "true"
-      SubSection "Display"
-        Modes "1280x720"
-      EndSubSection
+      Section "Module"
+        Disable     "dri"
+        SubSection  "extmod"
+          Option    "omit xfree86-dga"
+        EndSubSection
+      EndSection
+
+      Section "Device"
+        Identifier  "Tegra0"
+        Driver      "nvidia"
+        Option      "AllowUnofficialGLXProtocol" "true"
+        Option      "DPMS" "false"
+        Option      "AllowEmptyInitialConfiguration" "true"
+        Option      "Monitor-DSI-0" "Monitor0"
+      EndSection
+
+      Section "Monitor"
+        Identifier  "Monitor0"
+        ModelName   "DFP-0"
+      EndSection
+
+      Section "Screen"
+        Identifier  "Screen0"
+        Device      "Tegra0"
+        Monitor     "Monitor0"
+        DefaultDepth 24
+        Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
+        SubSection  "Display"
+          Depth     24
+        EndSubSection
+      EndSection
     '';
 
     # Touch coordinate transform for 90° CW rotation.
-    # libinput matrix: for CW rotation, map (x,y) → (y, 1-x)
-    # TransformationMatrix: 0 1 0 / -1 0 1 / 0 0 1
     inputClassSections = [''
       Identifier "touchscreen rotate"
       MatchIsTouchscreen "on"
       Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
     ''];
   };
+
+  # Tell the dynamic linker where the Tegra proprietary libs live.
+  environment.etc."ld.so.conf.d/tegra.conf".text = ''
+    /usr/lib/aarch64-linux-gnu/tegra
+    /usr/lib/aarch64-linux-gnu/tegra-egl
+  '';
 
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
   # Use groups.video.members instead of extraGroups because gdm is a
