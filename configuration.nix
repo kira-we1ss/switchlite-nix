@@ -96,7 +96,11 @@
     desktopManager.gnome.enable = true;
   };
 
-  # Dump systemd journal to FAT32 boot partition on startup for debugging.
+  # Persist journal to disk so we can read it even if boot crashes early.
+  services.journald.extraConfig = ''
+    Storage=persistent
+    Compress=no
+  '';
   # Remove this once the system boots reliably.
   systemd.services.dump-boot-log = {
     description = "Dump boot journal to FAT32 for debugging";
