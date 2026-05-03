@@ -84,13 +84,13 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    # The Tegra display driver doesn't exist in mainline Xorg; we use
-    # the modesetting driver backed by the L4T framebuffer/DRM.
-    videoDrivers = [ "modesetting" ];
+    # The Tegra 4.9 kernel uses a proprietary framebuffer (tegradc/fb0),
+    # not a standard DRM/KMS device. Use fbdev driver instead of modesetting.
+    videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
       enable  = true;
-      wayland = true;
+      wayland = false;  # Wayland needs DRM, fbdev is X11 only
     };
 
     desktopManager.gnome.enable = true;
