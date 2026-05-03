@@ -86,9 +86,9 @@
     enable       = true;
     # fbdev is listed so NixOS doesn't pull in the unfree nvidia package.
     # The actual driver used is nvidia_drv.so from tegra-l4t-libs, loaded
-    # via the ModulePath in extraConfig. -ignoreABI lets the L4T driver
-    # (ABI 24) load on xorg-server 1.21 (ABI 25).
-    videoDrivers = [ "fbdev" ];
+    # via the ModulePath. -ignoreABI lets the L4T driver (ABI 24) load on
+    # xorg-server 1.21 (ABI 25).
+    videoDrivers = [ "nvidia" ];
 
     displayManager.gdm = {
       enable  = true;
@@ -97,8 +97,25 @@
 
     desktopManager.gnome.enable = true;
 
-    # Pass -ignoreABI so the L4T nvidia_drv.so (ABI 24) loads on xorg-server 1.21 (ABI 25).
     displayManager.xserverArgs = [ "-ignoreABI" ];
+
+    # Use NixOS's generated Device/Screen sections but override the driver
+    # and options to use the L4T nvidia driver.
+    deviceSection = ''
+      Driver      "nvidia"
+      Option      "AllowUnofficialGLXProtocol" "true"
+      Option      "DPMS" "false"
+      Option      "AllowEmptyInitialConfiguration" "true"
+      Option      "Monitor-DSI-0" "Monitor0"
+    '';
+
+    screenSection = ''
+      DefaultDepth 24
+      Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
+      SubSection  "Display"
+        Depth     24
+      EndSubSection
+    '';
 
     extraConfig = ''
       Section "Files"
@@ -113,29 +130,9 @@
         EndSubSection
       EndSection
 
-      Section "Device"
-        Identifier  "Tegra0"
-        Driver      "nvidia"
-        Option      "AllowUnofficialGLXProtocol" "true"
-        Option      "DPMS" "false"
-        Option      "AllowEmptyInitialConfiguration" "true"
-        Option      "Monitor-DSI-0" "Monitor0"
-      EndSection
-
       Section "Monitor"
         Identifier  "Monitor0"
         ModelName   "DFP-0"
-      EndSection
-
-      Section "Screen"
-        Identifier  "Screen0"
-        Device      "Tegra0"
-        Monitor     "Monitor0"
-        DefaultDepth 24
-        Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
-        SubSection  "Display"
-          Depth     24
-        EndSubSection
       EndSection
     '';
 
