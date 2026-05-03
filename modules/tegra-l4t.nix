@@ -33,8 +33,10 @@ stdenvNoCC.mkDerivation {
   nativeBuildInputs = [ autoPatchelfHook ];
   buildInputs = [ xorg.libX11 xorg.libXext libdrm glibc ];
 
-  # The tarball has paths like usr/lib/..., etc/X11/..., lib/firmware/...
-  # relative to the rootfs root. Unpack and reorganise into $out.
+  # The tarball extracts to multiple top-level dirs (usr/, etc/, lib/).
+  # Set sourceRoot to prevent stdenv from complaining.
+  sourceRoot = ".";
+
   dontConfigure = true;
   dontBuild     = true;
 
