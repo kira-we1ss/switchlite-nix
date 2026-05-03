@@ -96,7 +96,11 @@ stdenv.mkDerivation rec {
           + "--param=l1-cache-line-size=64 --param=l1-cache-size=32 "
           + "--param=l2-cache-size=2048 "
           + "-Wno-error "
-          + "-Wno-maybe-uninitialized";
+          + "-Wno-maybe-uninitialized "
+          + "-Wno-address-of-packed-member "
+          + "-Wno-stringop-truncation "
+          + "-Wno-stringop-overread "
+          + "-Wno-address";
 
   ARCH = "arm64";
   # Derive CROSS_COMPILE from the actual toolchain so it matches whatever
