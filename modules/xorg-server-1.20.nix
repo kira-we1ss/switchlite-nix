@@ -36,9 +36,18 @@ xorg.xorgserver.overrideAttrs (old: rec {
     (x: !(lib.isDerivation x && lib.hasInfix "meson" (x.name or "")))
     (old.nativeBuildInputs or []);
 
-  # The dont-create-logdir patch may not apply cleanly to 1.20.x; drop it.
-  # 1.20.x creates the logdir at runtime, not build time.
+  # Drop the logdir-during-build patch (doesn't apply to 1.20.x autotools).
   patches = lib.filter
     (p: !(lib.isDerivation p && lib.hasInfix "logdir" (p.name or "")))
     (old.patches or []);
+
+  # Fix 'Bool bool' field conflicting with C99 bool keyword introduced by
+  # mesa 24+ dri_interface.h including <stdbool.h>. Rename the struct field
+  # and all references to 'boolean' across the relevant source files.
+  prePatch = (old.prePatch or "") + ''
+    sed -i 's/Bool bool;/Bool boolean;/g' hw/xfree86/common/xf86Opt.h
+    sed -i 's/value\.bool/value.boolean/g' \
+      hw/xfree86/common/xf86Option.c \
+      hw/xwin/winconfig.c
+  '';
 })
