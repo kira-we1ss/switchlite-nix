@@ -27,6 +27,10 @@
               switch-l4t-kernel = final.callPackage ./modules/l4t-kernel.nix {
                 stdenv = final.gcc7Stdenv;
               };
+              tegra-l4t-libs = final.callPackage ./modules/tegra-l4t.nix {
+                inherit (final.xorg) libX11 libXext;
+                inherit (final) libdrm;
+              };
             })
           ];
         })

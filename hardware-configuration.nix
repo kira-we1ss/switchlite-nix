@@ -86,20 +86,6 @@
   ];
 
   # ---------------------------------------------------------------
-  # DRM / display
-  # ---------------------------------------------------------------
-  # The L4T kernel exposes the internal display via /dev/fb0 (tegra-fb)
-  # and a DRM node.  We use the modesetting Xorg driver backed by that.
-  hardware.opengl = {
-    enable          = true;
-    driSupport      = true;
-    # Tegra's Mesa driver is "tegra" (Nouveau-based upstream) or the
-    # NVIDIA proprietary Tegra driver.  The L4T kernel works best with
-    # the upstream tegra Gallium driver available in Mesa ≥ 23.x.
-    extraPackages   = with pkgs; [ mesa ];
-  };
-
-  # ---------------------------------------------------------------
   # Platform – declared in flake.nix via nixpkgs.buildPlatform
   # ---------------------------------------------------------------
 }

@@ -84,9 +84,9 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    # Keep fbdev here so NixOS doesn't try to build the unfree nvidia package.
-    # The actual driver used is nvidia_drv.so, installed by CI from the Tegra
-    # libs tarball. We override the Device section via extraConfig below.
+    # Keep fbdev here so NixOS doesn't pull in the nixpkgs nvidia package.
+    # The actual driver is nvidia_drv.so from tegra-l4t-libs, loaded via
+    # the ModulePath and Device Driver overrides in extraConfig below.
     videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
@@ -96,12 +96,11 @@
 
     desktopManager.gnome.enable = true;
 
-    # Override the device/screen config to use the L4T nvidia driver.
-    # nvidia_drv.so lives at /usr/lib/xorg/modules/drivers/ (extracted by CI).
-    # The metamodes option handles rotation natively in the nvidia driver.
+    # Point Xorg at the L4T nvidia_drv.so and override the device config.
+    # metamodes handles the 90° rotation natively in the nvidia driver.
     extraConfig = ''
       Section "Files"
-        ModulePath "/usr/lib/xorg/modules/drivers"
+        ModulePath "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
         ModulePath "/run/current-system/sw/lib/xorg/modules"
       EndSection
 
@@ -146,11 +145,22 @@
     ''];
   };
 
-  # Tell the dynamic linker where the Tegra proprietary libs live.
+  # Tegra proprietary userspace libs (EGL, CUDA, display libs).
+  hardware.opengl = {
+    enable        = true;
+    driSupport    = true;
+    extraPackages = [ pkgs.tegra-l4t-libs ];
+  };
+
+  # Tell the dynamic linker where the Tegra libs live in the Nix store.
+  hardware.opengl.extraPackages32 = [];  # aarch64 — no 32-bit
   environment.etc."ld.so.conf.d/tegra.conf".text = ''
-    /usr/lib/aarch64-linux-gnu/tegra
-    /usr/lib/aarch64-linux-gnu/tegra-egl
+    ${pkgs.tegra-l4t-libs}/lib/aarch64-linux-gnu/tegra
+    ${pkgs.tegra-l4t-libs}/lib/aarch64-linux-gnu/tegra-egl
   '';
+
+  # xusb and GPU firmware for USB-C and nvgpu.
+  hardware.firmware = [ pkgs.tegra-l4t-libs ];
 
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
   # Use groups.video.members instead of extraGroups because gdm is a
