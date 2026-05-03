@@ -157,6 +157,9 @@ stdenv.mkDerivation rec {
       -d arch/arm64/boot/zImage \
       $out/boot/uImage
 
+    # NixOS internals expect the kernel image at $out/Image (arm64 convention)
+    cp arch/arm64/boot/Image $out/Image
+
     # Install DTBs for all Switch variants
     # tegra210b01-vali = Switch Lite (HDH)
     # tegra210b01-fric = Switch Lite (HDH with NVENC fuse variant)
