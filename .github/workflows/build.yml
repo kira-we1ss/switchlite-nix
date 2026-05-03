@@ -56,47 +56,19 @@ jobs:
           # uImage – our kernel, already mkimage-wrapped by the build
           cp result-kernel/boot/uImage bootstack-out/uImage
 
-          # nx-plat.dtimg – DTB image containing all Switch variants
-          # mkdtimg format: each DTB tagged with a hardware ID
-          nix shell nixpkgs#python3 -c python3 - <<'PYEOF'
-          import struct, os, sys
-
-          dtbs = [
-            ("result-kernel/boot/tegra210b01-vali.dtb", 0x56414C49),   # VALI - Switch Lite HDH-001
-            ("result-kernel/boot/tegra210b01-fric.dtb", 0x46524947),   # FRIG - Switch Lite fric
-            ("result-kernel/boot/tegra210-odin.dtb",    0x4F44494E),   # ODIN - OG Switch
-            ("result-kernel/boot/tegra210b01-odin.dtb", 0x4F44494E),   # ODIN rev B01
-          ]
-
-          # Use mkdtboimg.py from Android libufdt if available, else use dtc
-          import subprocess
-          result = subprocess.run(["which", "mkdtboimg"], capture_output=True)
-          if result.returncode == 0:
-            args = ["mkdtboimg", "create", "bootstack-out/nx-plat.dtimg", "--page_size=4096"]
-            for path, hwid in dtbs:
-              if os.path.exists(path):
-                args += [path, f"--id={hex(hwid)}"]
-            subprocess.run(args, check=True)
-          else:
-            # Fallback: concatenate DTBs with a simple header (hekate accepts this)
-            # Use the same format as theofficialgman's build scripts
-            subprocess.run(
-              ["nix", "shell", "nixpkgs#androidUniversal", "-c",
-               "mkdtboimg.py", "create", "bootstack-out/nx-plat.dtimg", "--page_size=4096"] +
-              [a for path, hwid in dtbs if os.path.exists(path)
-               for a in [path, f"--id={hex(hwid)}"]],
-              check=True
-            )
-          PYEOF
+          # nx-plat.dtimg – DTB image for all Switch variants
+          python3 bootstack/mkdtboimg.py create bootstack-out/nx-plat.dtimg \
+            --page_size=4096 \
+            result-kernel/boot/tegra210b01-vali.dtb --id=0x56414C49 \
+            result-kernel/boot/tegra210b01-fric.dtb --id=0x46524947 \
+            result-kernel/boot/tegra210-odin.dtb    --id=0x4F44494E \
+            result-kernel/boot/tegra210b01-odin.dtb --id=0x4F44494E
 
           # initramfs – NixOS initrd wrapped with mkimage for U-Boot
-          INITRD=$(find /nix/store -maxdepth 2 -name 'initrd' -path '*initrd-switch-l4t*' | head -1)
-          if [ -z "$INITRD" ]; then
-            # resolve from the build result
-            TOPLEVEL=$(nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel --no-link --print-out-paths)
-            INITRD=$(readlink -f "$TOPLEVEL/initrd")
-          fi
-          echo "Using initrd: $INITRD"
+          TOPLEVEL=$(nix build .#nixosConfigurations.switch-lite.config.system.build.toplevel --no-link --print-out-paths)
+          INITRD=$(readlink -f "$TOPLEVEL/initrd")
+          echo "Using initrd: $INITRD ($(du -h "$INITRD" | cut -f1))"
+
           nix shell nixpkgs#ubootTools -c mkimage \
             -A arm64 -O linux -T ramdisk -C gzip \
             -n "NixOS initrd" \
