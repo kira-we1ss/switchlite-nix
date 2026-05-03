@@ -42,16 +42,6 @@ jobs:
             -v \
             2>&1 | tee kernel-build.log
 
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            build.log
-            kernel-build.log
-          retention-days: 7
-
       - name: Collect boot files
         run: |
           mkdir -p release-assets
@@ -107,6 +97,16 @@ jobs:
             --numeric-owner
 
           ls -lh release-assets/nixos-rootfs.tar.zst
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            kernel-build.log
+          retention-days: 7
 
       - name: Upload artifacts (PR builds)
         if: github.event_name == 'pull_request'
