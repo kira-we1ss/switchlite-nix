@@ -105,6 +105,15 @@
         Modes "1280x720"
       EndSubSection
     '';
+
+    # Touch coordinate transform for 90° CW rotation.
+    # libinput matrix: for CW rotation, map (x,y) → (y, 1-x)
+    # TransformationMatrix: 0 1 0 / -1 0 1 / 0 0 1
+    inputClassSections = [''
+      Identifier "touchscreen rotate"
+      MatchIsTouchscreen "on"
+      Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
+    ''];
   };
 
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
