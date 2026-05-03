@@ -20,6 +20,11 @@ jobs:
 
       - name: Set up swap space
         run: |
+          # Runner may already have a swapfile; extend it or create a new one
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 8G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
