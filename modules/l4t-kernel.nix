@@ -99,7 +99,8 @@ stdenv.mkDerivation rec {
           + "-Wno-zero-length-bounds "
           + "-Wno-array-bounds "
           + "-Wno-address-of-packed-member "
-          + "-Wno-stringop-truncation";
+          + "-Wno-stringop-truncation "
+          + "-Wno-address";
 
   ARCH = "arm64";
   # Derive CROSS_COMPILE from the actual toolchain so it matches whatever
