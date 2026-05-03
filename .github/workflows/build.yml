@@ -117,15 +117,26 @@ jobs:
           nix-store --query --requisites "$TOPLEVEL" > /tmp/closure-paths.txt
           echo "Store paths: $(wc -l < /tmp/closure-paths.txt)"
 
-          # Pack as tar.zst
+          # Build rootfs into a staging directory, then tar it
+          echo "Assembling rootfs…"
+          ROOTFS=$(mktemp -d)
+
+          # Copy the full Nix store closure
+          sudo xargs -a /tmp/closure-paths.txt cp -a --parents -t "$ROOTFS"
+
+          # Root-level symlinks required to boot NixOS
+          sudo ln -sf "$TOPLEVEL/init"  "$ROOTFS/init"
+          sudo mkdir -p "$ROOTFS/nix/var/nix/profiles"
+          sudo ln -sf "$TOPLEVEL"       "$ROOTFS/nix/var/nix/profiles/system"
+
           echo "Creating rootfs tarball…"
           sudo tar \
             --create \
             --zstd \
             --file release-assets/nixos-rootfs.tar.zst \
-            --files-from /tmp/closure-paths.txt \
-            --transform 's|^/||' \
-            --numeric-owner
+            -C "$ROOTFS" \
+            --numeric-owner \
+            .
 
           ls -lh release-assets/nixos-rootfs.tar.zst
 
