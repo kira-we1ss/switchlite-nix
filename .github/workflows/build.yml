@@ -18,26 +18,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up swap space
-        run: |
-          # Runner may already have a swapfile; extend it or create a new one
-          if [ -f /swapfile ]; then
-            sudo swapoff /swapfile 2>/dev/null || true
-            sudo rm -f /swapfile
-          fi
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          free -h
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v14
         with:
           extra-conf: |
             extra-experimental-features = nix-command flakes
-            max-jobs = 4
-            cores = 4
 
       - name: Build kernel + NixOS system
         run: |
