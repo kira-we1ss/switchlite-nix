@@ -102,8 +102,8 @@
     '';
   };
 
-  # Tegra libraries need to be in the dynamic linker search path
-  hardware.opengl.enable = true;
+  # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS)
+  users.users.gdm.extraGroups = [ "video" ];
   environment.etc."ld.so.conf.d/tegra.conf".text = ''
     /usr/lib/aarch64-linux-gnu/tegra
     /usr/lib/aarch64-linux-gnu/tegra-egl
