@@ -83,6 +83,9 @@ cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-o
 # If a single file (small builds):
 # sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
 
+# The NixOS initrd handles first-boot activation (creating /etc, symlinks, etc.)
+# automatically on first boot – no manual chroot needed.
+
 sudo umount /mnt/fat32 /mnt/nixos
 ```
 
