@@ -62,7 +62,8 @@ Download the latest release assets from the [Releases page](../../releases/lates
 
 | File | Purpose |
 |---|---|
-| `Image` | Kernel image – replaces the L4T Ubuntu kernel |
+| `uImage` | Kernel image – replaces the L4T Ubuntu kernel |
+| `Image` | Raw uncompressed kernel (used by NixOS internals) |
 | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
 | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
 | `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure – may be split into chunks |
@@ -79,7 +80,7 @@ sudo mount /dev/sdXp1 /mnt/fat32
 sudo mount /dev/sdXp2 /mnt/nixos
 
 # Replace the L4T Ubuntu kernel with ours
-sudo cp Image /mnt/fat32/switchroot/ubuntu/Image
+sudo cp uImage /mnt/fat32/switchroot/ubuntu/uImage
 
 # NixOS rootfs – if split into .part* chunks (likely), reassemble and extract:
 cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
