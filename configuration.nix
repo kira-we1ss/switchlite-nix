@@ -15,6 +15,10 @@
   boot.loader.grub.enable  = false;
   boot.loader.generic-extlinux-compatible.enable = false;
 
+  # Use the legacy bash-based initrd — simpler and more reliable on
+  # non-standard hardware like the Switch where systemd-initrd may hang.
+  boot.initrd.systemd.enable = false;
+
   # Kernel: use our custom L4T build instead of the stock NixOS kernel.
   # The package is injected via the overlay defined in flake.nix.
   boot.kernelPackages = pkgs.linuxPackagesFor pkgs.switch-l4t-kernel;
@@ -26,9 +30,7 @@
     "fbcon=map:0"
     "video=1280x720@60"
     "console=tty0"
-    "quiet"
-    "splash"
-    "loglevel=3"
+    "loglevel=7"
   ];
 
   # ---------------------------------------------------------------
