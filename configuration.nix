@@ -96,7 +96,11 @@
     desktopManager.gnome.enable = true;
   };
 
-  # Persist journal to disk so we can read it even if boot crashes early.
+  # nsncd needs /var/empty to exist
+  system.activationScripts.varEmpty = ''
+    mkdir -p /var/empty
+    chmod 555 /var/empty
+  '';
   services.journald.extraConfig = ''
     Storage=persistent
     Compress=no

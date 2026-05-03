@@ -124,10 +124,18 @@ jobs:
           # Copy the full Nix store closure
           sudo xargs -a /tmp/closure-paths.txt cp -a --parents -t "$ROOTFS"
 
+          # Fix root dir ownership (cp --parents may inherit runner UID)
+          sudo chown root:root "$ROOTFS"
+          sudo chmod 755 "$ROOTFS"
+
           # Root-level symlinks required to boot NixOS
           sudo ln -sf "$TOPLEVEL/init"  "$ROOTFS/init"
           sudo mkdir -p "$ROOTFS/nix/var/nix/profiles"
           sudo ln -sf "$TOPLEVEL"       "$ROOTFS/nix/var/nix/profiles/system"
+
+          # /var/empty must exist for nsncd
+          sudo mkdir -p "$ROOTFS/var/empty"
+          sudo chmod 555 "$ROOTFS/var/empty"
 
           echo "Creating rootfs tarball…"
           sudo tar \
