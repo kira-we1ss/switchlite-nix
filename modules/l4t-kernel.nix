@@ -3,7 +3,7 @@
 # Sources mirror the l4t-kernel-build-scripts by theofficialgman
 # Targets both Erista (T210) and Mariko/Switch Lite (T214/tegra210b01) hardware.
 
-{ lib, stdenv, buildPackages, fetchFromGitHub, fetchgit
+{ lib, stdenv, fetchFromGitHub, fetchgit
 , rsync, perl, python3, bc, bison, flex, openssl, elfutils, kmod
 , ubootTools, dtc
 # NixOS passes various extra arguments to kernel derivations
@@ -80,28 +80,20 @@ stdenv.mkDerivation rec {
 
   src = kernelSrc;
 
-  # Build-time dependencies (cross-compilation from x86_64 → aarch64)
-  depsBuildBuild = [ buildPackages.stdenv.cc ];
+  # Build-time dependencies
+  depsBuildBuild = [ stdenv.cc ];
   nativeBuildInputs = [
-    buildPackages.stdenv.cc
-    buildPackages.binutils   # provides aarch64-*-objdump, objcopy, etc.
+    stdenv.cc
+    stdenv.cc.bintools  # provides objdump, objcopy, etc.
     rsync perl python3 bc bison flex openssl elfutils kmod
     ubootTools dtc
   ];
 
   # Tegra-specific optimisation flags (matching the upstream build script).
-  # -Wno-maybe-uninitialized suppresses false-positive warnings that newer
-  # GCC promotes to errors when building this old 4.9 kernel.
+  # gcc7Stdenv is used to match theofficialgman's Linaro GCC 7 toolchain.
   KCFLAGS = "-march=armv8-a+simd+crypto+crc -mtune=cortex-a57 "
           + "--param=l1-cache-line-size=64 --param=l1-cache-size=32 "
-          + "--param=l2-cache-size=2048 "
-          + "-Wno-error "
-          + "-Wno-maybe-uninitialized "
-          + "-Wno-address-of-packed-member "
-          + "-Wno-stringop-truncation "
-          + "-Wno-stringop-overread "
-          + "-Wno-address "
-          + "-Wno-array-bounds";
+          + "--param=l2-cache-size=2048";
 
   ARCH = "arm64";
   # Derive CROSS_COMPILE from the actual toolchain so it matches whatever

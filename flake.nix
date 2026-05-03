@@ -24,7 +24,9 @@
         ({ pkgs, lib, ... }: {
           nixpkgs.overlays = [
             (final: prev: {
-              switch-l4t-kernel = final.callPackage ./modules/l4t-kernel.nix {};
+              switch-l4t-kernel = final.callPackage ./modules/l4t-kernel.nix {
+                stdenv = final.gcc7Stdenv;
+              };
             })
           ];
         })
@@ -39,6 +41,8 @@
       let
         pkgs = import nixpkgs { system = "aarch64-linux"; };
       in
-        pkgs.callPackage ./modules/l4t-kernel.nix {};
+        pkgs.callPackage ./modules/l4t-kernel.nix {
+          stdenv = pkgs.gcc7Stdenv;
+        };
   };
 }
