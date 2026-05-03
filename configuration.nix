@@ -96,7 +96,22 @@
     desktopManager.gnome.enable = true;
   };
 
-  # Scale the UI to be usable on the 1280×720 5.5" screen
+  # Dump systemd journal to FAT32 boot partition on startup for debugging.
+  # Remove this once the system boots reliably.
+  systemd.services.dump-boot-log = {
+    description = "Dump boot journal to FAT32 for debugging";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" "systemd-journald.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "dump-boot-log" ''
+        mkdir -p /boot-fat32
+        mount -t vfat /dev/mmcblk0p1 /boot-fat32 2>/dev/null || true
+        journalctl -b --no-pager > /boot-fat32/nixos-stage2.log 2>&1 || true
+        umount /boot-fat32 2>/dev/null || true
+      '';
+    };
+  };
   environment.variables = {
     GDK_SCALE          = "1";
     GDK_DPI_SCALE      = "1.5";
