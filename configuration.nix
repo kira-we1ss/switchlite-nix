@@ -84,7 +84,7 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    videoDrivers = [ "nvidia" ];
+    videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
       enable  = true;
@@ -93,21 +93,12 @@
 
     desktopManager.gnome.enable = true;
 
-    # Tell Xorg where to find the L4T nvidia_drv.so and tegra libraries
-    extraConfig = ''
-      Section "Files"
-        ModulePath "/usr/lib/xorg/modules"
-        ModulePath "/run/current-system/sw/lib/xorg/modules"
-      EndSection
-    '';
   };
 
-  # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS)
-  users.users.gdm.extraGroups = [ "video" ];
-  environment.etc."ld.so.conf.d/tegra.conf".text = ''
-    /usr/lib/aarch64-linux-gnu/tegra
-    /usr/lib/aarch64-linux-gnu/tegra-egl
-  '';
+  # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
+  # Use groups.video.members instead of extraGroups because gdm is a
+  # system-managed user and extraGroups is ignored for it.
+  users.groups.video.members = [ "gdm" "switch" ];
 
   # nsncd needs /var/empty to exist
   system.activationScripts.varEmpty = ''
@@ -226,4 +217,6 @@
   # NixOS state version – do not change after first install
   # ---------------------------------------------------------------
   system.stateVersion = "24.05";
+
+  nixpkgs.config.allowUnfree = true;
 }
