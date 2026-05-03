@@ -84,17 +84,30 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    # The Tegra 4.9 kernel uses a proprietary framebuffer (tegradc/fb0),
-    # not a standard DRM/KMS device. Use fbdev driver instead of modesetting.
-    videoDrivers = [ "fbdev" ];
+    videoDrivers = [ "nvidia" ];
 
     displayManager.gdm = {
       enable  = true;
-      wayland = false;  # Wayland needs DRM, fbdev is X11 only
+      wayland = false;
     };
 
     desktopManager.gnome.enable = true;
+
+    # Tell Xorg where to find the L4T nvidia_drv.so and tegra libraries
+    extraConfig = ''
+      Section "Files"
+        ModulePath "/usr/lib/xorg/modules"
+        ModulePath "/run/current-system/sw/lib/xorg/modules"
+      EndSection
+    '';
   };
+
+  # Tegra libraries need to be in the dynamic linker search path
+  hardware.opengl.enable = true;
+  environment.etc."ld.so.conf.d/tegra.conf".text = ''
+    /usr/lib/aarch64-linux-gnu/tegra
+    /usr/lib/aarch64-linux-gnu/tegra-egl
+  '';
 
   # nsncd needs /var/empty to exist
   system.activationScripts.varEmpty = ''
