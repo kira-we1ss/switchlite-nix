@@ -60,22 +60,13 @@
   # ---------------------------------------------------------------
   # Hardware modules that must be loaded early
   # ---------------------------------------------------------------
-  boot.initrd.kernelModules = [
-    # eMMC / SD controller
-    "sdhci_tegra"
-    # Framebuffer (needed for early console output)
-    "tegra-dc"
-    # USB (xHCI for the USB-C port on Switch Lite)
-    "xhci_tegra"
-  ];
+  boot.initrd.kernelModules = [];
 
-  # ext2/ext4 are built into the kernel image (CONFIG_EXT2_FS=y, CONFIG_EXT4_FS=y),
-  # not available as loadable modules.  Override availableKernelModules to prevent
-  # NixOS's initrd builder from trying to locate them as .ko files.
-  boot.initrd.availableKernelModules = lib.mkForce [
-    "sdhci_tegra" "mmc_block" "sd_mod"
-    "tegra-dc" "xhci_tegra"
-  ];
+  # This kernel has all boot-critical drivers built-in (=y in defconfig):
+  # MMC/SDHCI, ext2/ext4, USB xHCI, tegra-dc, etc.
+  # Setting availableKernelModules to empty prevents NixOS from trying
+  # to locate any .ko files for the initrd, which would fail.
+  boot.initrd.availableKernelModules = lib.mkForce [];
 
   boot.kernelModules = [
     # Wi-Fi: BCM4354 on Switch Lite (Mariko)
