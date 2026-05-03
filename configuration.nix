@@ -86,8 +86,8 @@
     enable       = true;
     # fbdev is listed so NixOS doesn't pull in the unfree nvidia package.
     # The actual driver used is nvidia_drv.so from tegra-l4t-libs, loaded
-    # via the ModulePath in extraConfig. xorg-server 1.20.13 (ABI 24) is
-    # substituted via overlay to match the L4T driver ABI requirement.
+    # via the ModulePath in extraConfig. -ignoreABI lets the L4T driver
+    # (ABI 24) load on xorg-server 1.21 (ABI 25).
     videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
@@ -96,6 +96,9 @@
     };
 
     desktopManager.gnome.enable = true;
+
+    # Pass -ignoreABI so the L4T nvidia_drv.so (ABI 24) loads on xorg-server 1.21 (ABI 25).
+    displayManager.xserverArgs = [ "-ignoreABI" ];
 
     extraConfig = ''
       Section "Files"
