@@ -47,7 +47,10 @@ jobs:
         run: |
           mkdir -p release-assets
 
-          # uImage
+          # Raw Image (required by hekate)
+          cp result-kernel/Image release-assets/Image
+
+          # uImage (U-Boot wrapped, kept for reference)
           cp result-kernel/boot/uImage release-assets/uImage
 
           # DTBs – copy all that exist
@@ -63,7 +66,7 @@ jobs:
           # hekate boot entry snippet for convenience
           cat > release-assets/hekate_ipl.ini.snippet <<'EOF'
           [NixOS]
-          l=/uImage
+          l=/Image
           r=/tegra210b01-vali.dtb
           ; Switch Lite fric variant – try this if vali doesn't POST:
           ; r=/tegra210b01-fric.dtb
@@ -155,7 +158,8 @@ jobs:
 
             | File | Purpose |
             |---|---|
-            | `uImage` | Kernel image – copy to FAT32 partition root |
+            | `Image` | Raw kernel image for hekate |
+            | `uImage` | U-Boot wrapped kernel (kept for reference) |
             | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
             | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
             | `tegra210-odin.dtb` | DTB for OG Switch |
@@ -173,7 +177,7 @@ jobs:
             sudo mount /dev/sdXp2 /mnt/nixos
 
             # Boot files
-            sudo cp uImage /mnt/fat32/uImage
+            sudo cp Image /mnt/fat32/Image
             sudo cp tegra210b01-vali.dtb /mnt/fat32/
 
             # NixOS rootfs – if split into parts, reassemble then extract:
