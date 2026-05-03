@@ -140,19 +140,15 @@ stdenv.mkDerivation rec {
   configurePhase = ''
     make tegra_linux_defconfig ARCH=arm64
 
+    # Patch .config directly — scripts/config isn't available until after
+    # the build scripts are compiled, which happens during the build phase.
+    # Append overrides then let olddefconfig resolve any dependencies.
+
     # Enable SDIO for BCM4354 Wi-Fi (Switch Lite uses SDIO, not PCIe)
-    ./scripts/config --enable CONFIG_BRCMFMAC_SDIO
-
-    # Enable UART HCI for BCM4354 Bluetooth
-    ./scripts/config --module CONFIG_BT_HCIUART
-    ./scripts/config --enable CONFIG_BT_HCIUART_BCM
-
-    # Ensure hid_nintendo is built-in (it's =y in defconfig but be explicit)
-    ./scripts/config --enable CONFIG_HID_NINTENDO
-
+    echo "CONFIG_BRCMFMAC_SDIO=y" >> .config
     # Joy-Con rail driver (UART serdev, Switch Lite built-in rails)
-    ./scripts/config --module CONFIG_JOYSTICK_JOYCON_SERDEV
-    ./scripts/config --enable CONFIG_JOYCON_SERDEV_FF
+    echo "CONFIG_JOYSTICK_JOYCON_SERDEV=m" >> .config
+    echo "CONFIG_JOYCON_SERDEV_FF=y" >> .config
 
     make olddefconfig ARCH=arm64
   '';
@@ -162,7 +158,6 @@ stdenv.mkDerivation rec {
     # tegra-dtstree is relative to the kernel source dir (workdir/kernel-4.9/).
     # ../hardware/nvidia resolves to workdir/hardware/nvidia.
     make -j$NIX_BUILD_CORES tegra-dtstree="../hardware/nvidia" ARCH=arm64
-    make -j$NIX_BUILD_CORES modules tegra-dtstree="../hardware/nvidia" ARCH=arm64
   '';
 
   installPhase = ''
