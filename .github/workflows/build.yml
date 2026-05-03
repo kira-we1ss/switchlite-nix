@@ -66,11 +66,11 @@ jobs:
           # hekate boot entry snippet for convenience
           cat > release-assets/hekate_ipl.ini.snippet <<'EOF'
           [NixOS]
-          l=/Image
-          r=/tegra210b01-vali.dtb
-          ; Switch Lite fric variant – try this if vali doesn't POST:
-          ; r=/tegra210b01-fric.dtb
-          k=fbcon=map:0 video=1280x720@60 console=tty0 root=/dev/mmcblk0p2 rw rootwait quiet splash
+          l4t=1
+          boot_prefixes=/switchroot/ubuntu/
+          id=nixos
+          rootdev=mmcblk0p2
+          rootfstype=ext4
           icon=bootloader/res/icon_payload.bmp
           EOF
 
@@ -154,35 +154,38 @@ jobs:
           body: |
             Automated build from commit ${{ github.sha }}.
 
+            ## Prerequisites
+
+            This NixOS build requires the **Switchroot L4T Ubuntu bootstack** to already be installed on your SD card.
+            The bootstack provides `bl31.bin`, `bl33.bin` (U-Boot), and associated firmware that hekate needs to boot Linux.
+            See the [README](https://github.com/kira-we1ss/switchlite-nix#readme) for the full installation guide.
+
             ## Files
 
             | File | Purpose |
             |---|---|
-            | `Image` | Raw kernel image for hekate |
-            | `uImage` | U-Boot wrapped kernel (kept for reference) |
-            | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001, try this first) |
+            | `Image` | Kernel image – replaces `switchroot/ubuntu/Image` |
+            | `uImage` | U-Boot wrapped kernel (for reference) |
+            | `tegra210b01-vali.dtb` | DTB for Switch Lite (HDH-001) |
             | `tegra210b01-fric.dtb` | DTB for Switch Lite (fric fuse variant) |
             | `tegra210-odin.dtb` | DTB for OG Switch |
             | `tegra210b01-odin.dtb` | DTB for OG Switch (Mariko revision) |
             | `nixos-rootfs.tar.zst` / `.tar.zst.part*` | Full NixOS root closure – extract to ext4 partition (reassemble parts first if split) |
-            | `hekate_ipl.ini.snippet` | Paste into `hekate_ipl.ini` on the FAT32 partition |
+            | `hekate_ipl.ini.snippet` | Add to `hekate_ipl.ini` on the FAT32 partition |
 
-            ## Flashing
-
-            Run these commands on your PC with the Switch's SD card mounted:
+            ## Flashing (on your PC)
 
             ```bash
             # Mount SD card partitions (adjust /dev/sdX to your card)
             sudo mount /dev/sdXp1 /mnt/fat32
             sudo mount /dev/sdXp2 /mnt/nixos
 
-            # Boot files
-            sudo cp Image /mnt/fat32/Image
-            sudo cp tegra210b01-vali.dtb /mnt/fat32/
+            # Replace kernel (bootstack must already be installed by Switchroot L4T Ubuntu)
+            sudo cp Image /mnt/fat32/switchroot/ubuntu/Image
 
             # NixOS rootfs – if split into parts, reassemble then extract:
             cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
-            # If not split (single file):
+            # If a single file:
             # sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
 
             sudo umount /mnt/fat32 /mnt/nixos
