@@ -88,7 +88,7 @@
     # The actual driver used is nvidia_drv.so from tegra-l4t-libs, loaded
     # via the ModulePath. -ignoreABI lets the L4T driver (ABI 24) load on
     # xorg-server 1.21 (ABI 25).
-    videoDrivers = [ "nvidia" ];
+    videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
       enable  = true;
