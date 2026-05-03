@@ -121,7 +121,7 @@
     Section "InputClass"
       Identifier "touchscreen rotate"
       MatchProduct "touchscreen"
-      Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
+      Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
     EndSection
 
     Section "Device"
@@ -143,7 +143,7 @@
       Device       "Tegra0"
       Monitor      "Monitor0"
       DefaultDepth 24
-      Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
+      Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
       SubSection   "Display"
         Depth      24
       EndSubSection
