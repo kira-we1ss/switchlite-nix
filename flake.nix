@@ -28,6 +28,12 @@
                 stdenv = final.gcc7Stdenv;
               };
               tegra-l4t-libs = final.callPackage ./modules/tegra-l4t.nix {};
+              # xorg-server 1.20.13 (ABI 24) required by the L4T nvidia_drv.so
+              xorg = prev.xorg // {
+                xorgserver = final.callPackage ./modules/xorg-server-1.20.nix {
+                  inherit (prev) xorg;
+                };
+              };
             })
           ];
         })

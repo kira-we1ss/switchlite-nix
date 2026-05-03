@@ -84,9 +84,10 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    # Keep fbdev here so NixOS doesn't pull in the nixpkgs nvidia package.
-    # The actual driver is nvidia_drv.so from tegra-l4t-libs, loaded via
-    # the ModulePath and Device Driver overrides in extraConfig below.
+    # fbdev is listed so NixOS doesn't pull in the unfree nvidia package.
+    # The actual driver used is nvidia_drv.so from tegra-l4t-libs, loaded
+    # via the ModulePath in extraConfig. xorg-server 1.20.13 (ABI 24) is
+    # substituted via overlay to match the L4T driver ABI requirement.
     videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
@@ -96,8 +97,6 @@
 
     desktopManager.gnome.enable = true;
 
-    # Point Xorg at the L4T nvidia_drv.so and override the device config.
-    # metamodes handles the 90° rotation natively in the nvidia driver.
     extraConfig = ''
       Section "Files"
         ModulePath "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
@@ -130,18 +129,18 @@
         Device      "Tegra0"
         Monitor     "Monitor0"
         DefaultDepth 24
-        Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
+        Option      "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
         SubSection  "Display"
           Depth     24
         EndSubSection
       EndSection
     '';
 
-    # Touch coordinate transform for 90° CW rotation.
+    # Touch coordinate transform for 270° (CCW) rotation.
     inputClassSections = [''
       Identifier "touchscreen rotate"
-      MatchIsTouchscreen "on"
-      Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
+      MatchProduct "touchscreen"
+      Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
     ''];
   };
 
