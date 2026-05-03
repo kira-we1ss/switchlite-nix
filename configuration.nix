@@ -84,7 +84,7 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    videoDrivers = [ "fbdev" ]; # prevents nixpkgs nvidia module from loading
+    videoDrivers = [ "fbdev" ];
 
     displayManager.gdm = {
       enable  = true;
@@ -94,72 +94,66 @@
     desktopManager.gnome.enable = true;
 
     displayManager.xserverArgs = [ "-ignoreABI" ];
-
-    # Write the entire xorg.conf from scratch to avoid NixOS generating
-    # conflicting Driver/Screen sections. The L4T nvidia_drv.so requires
-    # the ModulePath to appear before the driver is loaded.
-    config = ''
-      Section "Files"
-        FontPath    "/nix/store/jzhrgs56g067ck48rykl8xxlc7r5nx5h-font-cursor-misc-1.0.4/lib/X11/fonts/misc"
-        ModulePath  "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
-        ModulePath  "/run/current-system/sw/lib/xorg/modules"
-      EndSection
-
-      Section "ServerFlags"
-        Option "AllowMouseOpenFail" "on"
-        Option "DontZap" "on"
-      EndSection
-
-      Section "Module"
-        Disable    "dri"
-        SubSection "extmod"
-          Option   "omit xfree86-dga"
-        EndSubSection
-      EndSection
-
-      Section "InputClass"
-        Identifier "touchscreen rotate"
-        MatchProduct "touchscreen"
-        Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
-      EndSection
-
-      Section "InputClass"
-        Identifier "libinput touchscreen"
-        MatchIsTouchscreen "on"
-        Driver "libinput"
-      EndSection
-
-      Section "Device"
-        Identifier "Tegra0"
-        Driver     "nvidia"
-        Option     "AllowUnofficialGLXProtocol" "true"
-        Option     "DPMS" "false"
-        Option     "AllowEmptyInitialConfiguration" "true"
-        Option     "Monitor-DSI-0" "Monitor0"
-      EndSection
-
-      Section "Monitor"
-        Identifier "Monitor0"
-        ModelName  "DFP-0"
-      EndSection
-
-      Section "Screen"
-        Identifier   "Screen0"
-        Device       "Tegra0"
-        Monitor      "Monitor0"
-        DefaultDepth 24
-        Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
-        SubSection   "Display"
-          Depth      24
-        EndSubSection
-      EndSection
-
-      Section "ServerLayout"
-        Identifier "Layout0"
-        Screen     "Screen0"
-      EndSection
-    '';
   };
+
+  # Write xorg.conf to /etc/X11/xorg.conf — this takes priority over the
+  # NixOS-generated config passed via -config. Gives us full control to use
+  # the L4T nvidia_drv.so without NixOS's fbdev sections interfering.
+  environment.etc."X11/xorg.conf".text = ''
+    Section "Files"
+      FontPath    "/nix/store/jzhrgs56g067ck48rykl8xxlc7r5nx5h-font-cursor-misc-1.0.4/lib/X11/fonts/misc"
+      ModulePath  "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
+      ModulePath  "/run/current-system/sw/lib/xorg/modules"
+    EndSection
+
+    Section "ServerFlags"
+      Option "AllowMouseOpenFail" "on"
+      Option "DontZap" "on"
+    EndSection
+
+    Section "Module"
+      Disable    "dri"
+      SubSection "extmod"
+        Option   "omit xfree86-dga"
+      EndSubSection
+    EndSection
+
+    Section "InputClass"
+      Identifier "touchscreen rotate"
+      MatchProduct "touchscreen"
+      Option "TransformationMatrix" "0 -1 1 1 0 0 0 0 1"
+    EndSection
+
+    Section "Device"
+      Identifier "Tegra0"
+      Driver     "nvidia"
+      Option     "AllowUnofficialGLXProtocol" "true"
+      Option     "DPMS" "false"
+      Option     "AllowEmptyInitialConfiguration" "true"
+      Option     "Monitor-DSI-0" "Monitor0"
+    EndSection
+
+    Section "Monitor"
+      Identifier "Monitor0"
+      ModelName  "DFP-0"
+    EndSection
+
+    Section "Screen"
+      Identifier   "Screen0"
+      Device       "Tegra0"
+      Monitor      "Monitor0"
+      DefaultDepth 24
+      Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=270}"
+      SubSection   "Display"
+        Depth      24
+      EndSubSection
+    EndSection
+
+    Section "ServerLayout"
+      Identifier "Layout0"
+      Screen     "Screen0"
+    EndSection
+  '';  };
 
   # Tegra proprietary userspace libs (EGL, CUDA, display libs).
   hardware.opengl = {
