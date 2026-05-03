@@ -19,6 +19,17 @@
   # non-standard hardware like the Switch where systemd-initrd may hang.
   boot.initrd.systemd.enable = false;
 
+  # On initrd failure, dump logs to the FAT32 boot partition so we can
+  # read them on a PC. The boot partition is the first MMC partition.
+  boot.initrd.preFailCommands = ''
+    mkdir -p /boot-fat32
+    if mount -t vfat /dev/mmcblk0p1 /boot-fat32 2>/dev/null; then
+      dmesg > /boot-fat32/nixos-boot.log
+      cat /run/log/stage-1-init.log >> /boot-fat32/nixos-boot.log 2>/dev/null || true
+      umount /boot-fat32
+    fi
+  '';
+
   # Kernel: use our custom L4T build instead of the stock NixOS kernel.
   # The package is injected via the overlay defined in flake.nix.
   boot.kernelPackages = pkgs.linuxPackagesFor pkgs.switch-l4t-kernel;
