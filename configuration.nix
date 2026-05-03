@@ -159,7 +159,7 @@
     ${pkgs.tegra-l4t-libs}/lib/aarch64-linux-gnu/tegra-egl
   '';
 
-  # xusb and GPU firmware for USB-C and nvgpu.
+  # xusb and GPU firmware for USB-C and nvgpu, plus any future blobs.
   hardware.firmware = [ pkgs.tegra-l4t-libs ];
 
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
@@ -206,12 +206,9 @@
   # ---------------------------------------------------------------
   networking.networkmanager.enable = true;
 
-  # Wi-Fi: BCM4356 (OG Switch) / BCM4354 (Mariko/Switch Lite).
+  # Wi-Fi: BCM4354 (Mariko/Switch Lite).
   # The firmware blobs are shipped inside the L4T kernel tree as
   # ihex files and compiled in; no extra firmware package is needed.
-  # If Wi-Fi doesn't appear, check `dmesg | grep brcm` and ensure
-  # the nvs calibration file is present (dump from HOS with hekate).
-  hardware.firmware = [ ];
 
   # ---------------------------------------------------------------
   # Audio
