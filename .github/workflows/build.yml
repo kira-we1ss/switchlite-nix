@@ -165,8 +165,10 @@ jobs:
 
             ## Flashing
 
+            Run these commands on your PC with the Switch's SD card mounted:
+
             ```bash
-            # Mount SD card partitions
+            # Mount SD card partitions (adjust /dev/sdX to your card)
             sudo mount /dev/sdXp1 /mnt/fat32
             sudo mount /dev/sdXp2 /mnt/nixos
 
@@ -174,9 +176,10 @@ jobs:
             sudo cp uImage /mnt/fat32/uImage
             sudo cp tegra210b01-vali.dtb /mnt/fat32/
 
-            # NixOS rootfs (may be split into .part* chunks if >1900 MB)
-            # Reassemble with: cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
-            sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
+            # NixOS rootfs – if split into parts, reassemble then extract:
+            cat nixos-rootfs.tar.zst.part* | sudo tar --zstd -xf - -C /mnt/nixos --numeric-owner
+            # If not split (single file):
+            # sudo tar --zstd -xf nixos-rootfs.tar.zst -C /mnt/nixos --numeric-owner
 
             sudo umount /mnt/fat32 /mnt/nixos
             ```
