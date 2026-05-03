@@ -26,6 +26,7 @@ jobs:
 
       - name: Build kernel + NixOS system
         run: |
+          set -o pipefail
           nix build \
             .#nixosConfigurations.switch-lite.config.system.build.toplevel \
             --no-link \
