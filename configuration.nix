@@ -284,6 +284,7 @@
     enable               = true;
     settings.PasswordAuthentication = true;
     settings.PermitRootLogin        = "no";
+    settings.LogLevel               = "DEBUG3";
   };
 
   # ---------------------------------------------------------------
