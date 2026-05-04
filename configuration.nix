@@ -156,6 +156,43 @@
   # xusb and GPU firmware for USB-C and nvgpu, plus any future blobs.
   hardware.firmware = [ pkgs.tegra-l4t-libs ];
 
+  # Tegra device node udev rules — required for nvgpu/nvhost devices to appear
+  # with correct permissions so the L4T nvidia X driver can open them.
+  services.udev.extraRules = ''
+    KERNEL=="nvmap",           OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-ctrl",     OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-ctrl-gpu", OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-gpu",      OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-vic",      OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-msenc",    OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-nvdec",    OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-nvjpg",    OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-dbg-gpu",  OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="nvhost-prof-gpu", OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="tegra_dc_ctrl",   OWNER="root", GROUP="video", MODE="0660"
+    KERNEL=="tegra_dc_0",      OWNER="root", GROUP="video", MODE="0660"
+  '';
+
+  # USB gadget networking for SSH over USB-C.
+  # Creates usb0 as RNDIS device at 192.168.7.1 (Switch side).
+  # Connect USB-C to laptop, then: ssh switch@192.168.7.1
+  systemd.services.usb-gadget-rndis = {
+    description = "USB gadget RNDIS network interface";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "systemd-modules-load.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "usb-gadget-rndis-start" ''
+        set -e
+        modprobe g_ether host_addr=42:63:65:13:34:56 dev_addr=42:63:65:13:34:57 || true
+        sleep 1
+        ip link set usb0 up || true
+        ip addr add 192.168.7.1/24 dev usb0 || true
+      '';
+    };
+  };
+
   # GDM needs access to /dev/fb0 on Tegra (no DRM/KMS).
   # Use groups.video.members instead of extraGroups because gdm is a
   # system-managed user and extraGroups is ignored for it.

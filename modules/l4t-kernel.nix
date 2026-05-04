@@ -149,6 +149,12 @@ stdenv.mkDerivation rec {
     # Joy-Con rail driver (UART serdev, Switch Lite built-in rails)
     echo "CONFIG_JOYSTICK_JOYCON_SERDEV=m" >> .config
     echo "CONFIG_JOYCON_SERDEV_FF=y" >> .config
+    # USB gadget networking (RNDIS/ECM) for SSH over USB-C
+    echo "CONFIG_USB_GADGET=y" >> .config
+    echo "CONFIG_USB_CONFIGFS=y" >> .config
+    echo "CONFIG_USB_CONFIGFS_RNDIS=y" >> .config
+    echo "CONFIG_USB_CONFIGFS_ECM=y" >> .config
+    echo "CONFIG_USB_ETH=m" >> .config
 
     make olddefconfig ARCH=arm64
   '';
@@ -193,6 +199,8 @@ stdenv.mkDerivation rec {
     # Remove broken symlinks (build/source) that point back into the build dir
     rm -f $out/lib/modules/${version}/build \
           $out/lib/modules/${version}/source
+    # Generate modules.dep, modules.alias, etc. so modprobe/systemd can find modules by name
+    ${kmod}/bin/depmod -b $out ${version}
   '';
 
   meta = with lib; {
