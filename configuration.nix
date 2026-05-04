@@ -74,6 +74,9 @@
     # Set a password with: passwd switch
     # Or pre-hash one: mkpasswd -m sha-512
     initialPassword = "changeme";
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlSsup/JXW7L25dBiTNxWzxtbxbcZ9f4UuMRX7yKNKV kweiss@xiaolong-nix"
+    ];
   };
 
   # Allow passwordless sudo for wheel (convenient on a single-user device)
