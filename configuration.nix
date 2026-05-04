@@ -109,33 +109,56 @@
     Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
   ''];
 
-  # With videoDrivers=[], NixOS generates no Device/Screen/ServerLayout.
-  # We append them ourselves via services.xserver.config (which is appended
-  # at the end of the generated xserver.conf).
+  # Minimal Device section matching Kubuntu's xorg.conf exactly.
+  # No Screen/ServerLayout here — those go in xorg.conf.d below.
   services.xserver.config = lib.mkAfter ''
+    Section "Module"
+      Disable    "dri"
+      SubSection "extmod"
+        Option   "omit xfree86-dga"
+      EndSubSection
+    EndSection
+
     Section "Device"
-      Identifier "Device-nvidia[0]"
+      Identifier "Tegra0"
       Driver     "nvidia"
       Option     "AllowUnofficialGLXProtocol" "true"
       Option     "DPMS" "false"
       Option     "AllowEmptyInitialConfiguration" "true"
-      Option     "Monitor-DSI-0" "Monitor[0]"
+      Option     "Monitor-DSI-0" "Monitor0"
+      Option     "Monitor-DP-0"  "Monitor1"
+    EndSection
+  '';
+
+  # Screen, Monitor, and touch config in xorg.conf.d — mirrors Kubuntu exactly.
+  environment.etc."X11/xorg.conf.d/10-monitor.conf".text = ''
+    Section "Monitor"
+      Identifier "Monitor0"
+      ModelName  "DFP-0"
+    EndSection
+
+    Section "Monitor"
+      Identifier "Monitor1"
+      Option     "Enable" "false"
     EndSection
 
     Section "Screen"
-      Identifier   "Screen-nvidia[0]"
-      Device       "Device-nvidia[0]"
-      Monitor      "Monitor[0]"
+      Identifier   "Screen0"
+      Device       "Tegra0"
+      Monitor      "Monitor0"
       DefaultDepth 24
       Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
       SubSection   "Display"
         Depth      24
       EndSubSection
     EndSection
+  '';
 
-    Section "ServerLayout"
-      Identifier "Layout[all]"
-      Screen     "Screen-nvidia[0]"
+  environment.etc."X11/xorg.conf.d/11-touchscreen.conf".text = ''
+    Section "InputClass"
+      Identifier  "calibration"
+      MatchProduct "touchscreen"
+      Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
     EndSection
   '';
 
@@ -185,10 +208,10 @@
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "usb-gadget-rndis-start" ''
         set -e
-        modprobe g_ether host_addr=42:63:65:13:34:56 dev_addr=42:63:65:13:34:57 || true
+        ${pkgs.kmod}/bin/modprobe g_ether host_addr=42:63:65:13:34:56 dev_addr=42:63:65:13:34:57 || true
         sleep 1
-        ip link set usb0 up || true
-        ip addr add 192.168.7.1/24 dev usb0 || true
+        ${pkgs.iproute2}/bin/ip link set usb0 up || true
+        ${pkgs.iproute2}/bin/ip addr add 192.168.7.1/24 dev usb0 || true
       '';
     };
   };
