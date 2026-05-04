@@ -84,7 +84,10 @@
   # ---------------------------------------------------------------
   services.xserver = {
     enable       = true;
-    videoDrivers = [ "fbdev" ];
+    # Empty: prevents NixOS from generating any Device/Screen/ServerLayout
+    # sections (which would conflict with ours below). No nixpkgs nvidia
+    # package is pulled in either.
+    videoDrivers = [];
 
     displayManager.gdm = {
       enable  = true;
@@ -96,29 +99,8 @@
     displayManager.xserverArgs = [ "-ignoreABI" ];
   };
 
-  # Inject the tegra nvidia_drv.so path into the generated Files section.
-  # NixOS builds the Files section from cfg.modules; adding tegra-l4t-libs
-  # here puts its ModulePath before the xorg-server default modules.
+  # Add tegra-l4t-libs ModulePath to the generated Files section.
   services.xserver.modules = [ pkgs.tegra-l4t-libs ];
-
-  # Override the Device section to use the L4T nvidia driver instead of fbdev.
-  # videoDrivers stays as ["fbdev"] to prevent nixpkgs nvidia package eval,
-  # but the actual driver loaded is nvidia_drv.so from tegra-l4t-libs.
-  services.xserver.deviceSection = ''
-    Driver     "nvidia"
-    Option     "AllowUnofficialGLXProtocol" "true"
-    Option     "DPMS" "false"
-    Option     "AllowEmptyInitialConfiguration" "true"
-    Option     "Monitor-DSI-0" "Monitor[0]"
-  '';
-
-  services.xserver.screenSection = ''
-    DefaultDepth 24
-    Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
-    SubSection   "Display"
-      Depth      24
-    EndSubSection
-  '';
 
   # Touch coordinate transform for 90° CW rotation.
   services.xserver.inputClassSections = [''
@@ -126,6 +108,36 @@
     MatchProduct "touchscreen"
     Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
   ''];
+
+  # With videoDrivers=[], NixOS generates no Device/Screen/ServerLayout.
+  # We append them ourselves via services.xserver.config (which is appended
+  # at the end of the generated xserver.conf).
+  services.xserver.config = lib.mkAfter ''
+    Section "Device"
+      Identifier "Device-nvidia[0]"
+      Driver     "nvidia"
+      Option     "AllowUnofficialGLXProtocol" "true"
+      Option     "DPMS" "false"
+      Option     "AllowEmptyInitialConfiguration" "true"
+      Option     "Monitor-DSI-0" "Monitor[0]"
+    EndSection
+
+    Section "Screen"
+      Identifier   "Screen-nvidia[0]"
+      Device       "Device-nvidia[0]"
+      Monitor      "Monitor[0]"
+      DefaultDepth 24
+      Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
+      SubSection   "Display"
+        Depth      24
+      EndSubSection
+    EndSection
+
+    Section "ServerLayout"
+      Identifier "Layout[all]"
+      Screen     "Screen-nvidia[0]"
+    EndSection
+  '';
 
   # Tegra proprietary userspace libs (EGL, CUDA, display libs).
   hardware.opengl = {
