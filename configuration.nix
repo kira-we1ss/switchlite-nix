@@ -96,10 +96,10 @@
     displayManager.xserverArgs = [ "-ignoreABI" ];
   };
 
-  # Write xorg.conf to /etc/X11/xorg.conf — this takes priority over the
-  # NixOS-generated config passed via -config. Gives us full control to use
-  # the L4T nvidia_drv.so without NixOS's fbdev sections interfering.
-  environment.etc."X11/xorg.conf".text = ''
+  # Replace the NixOS-generated xserver.conf entirely. NixOS passes this file
+  # via -config to X, which takes priority over /etc/X11/xorg.conf.
+  # Using services.xserver.config means our content IS that generated file.
+  services.xserver.config = ''
     Section "Files"
       FontPath    "/nix/store/jzhrgs56g067ck48rykl8xxlc7r5nx5h-font-cursor-misc-1.0.4/lib/X11/fonts/misc"
       ModulePath  "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
