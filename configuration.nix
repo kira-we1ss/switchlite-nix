@@ -96,64 +96,36 @@
     displayManager.xserverArgs = [ "-ignoreABI" ];
   };
 
-  # Replace the NixOS-generated xserver.conf entirely. NixOS passes this file
-  # via -config to X, which takes priority over /etc/X11/xorg.conf.
-  # Using services.xserver.config means our content IS that generated file.
-  services.xserver.config = ''
-    Section "Files"
-      FontPath    "/nix/store/jzhrgs56g067ck48rykl8xxlc7r5nx5h-font-cursor-misc-1.0.4/lib/X11/fonts/misc"
-      ModulePath  "${pkgs.tegra-l4t-libs}/lib/xorg/modules/drivers"
-      ModulePath  "/run/current-system/sw/lib/xorg/modules"
-    EndSection
+  # Inject the tegra nvidia_drv.so path into the generated Files section.
+  # NixOS builds the Files section from cfg.modules; adding tegra-l4t-libs
+  # here puts its ModulePath before the xorg-server default modules.
+  services.xserver.modules = [ pkgs.tegra-l4t-libs ];
 
-    Section "ServerFlags"
-      Option "AllowMouseOpenFail" "on"
-      Option "DontZap" "on"
-    EndSection
-
-    Section "Module"
-      Disable    "dri"
-      SubSection "extmod"
-        Option   "omit xfree86-dga"
-      EndSubSection
-    EndSection
-
-    Section "InputClass"
-      Identifier "touchscreen rotate"
-      MatchProduct "touchscreen"
-      Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
-    EndSection
-
-    Section "Device"
-      Identifier "Tegra0"
-      Driver     "nvidia"
-      Option     "AllowUnofficialGLXProtocol" "true"
-      Option     "DPMS" "false"
-      Option     "AllowEmptyInitialConfiguration" "true"
-      Option     "Monitor-DSI-0" "Monitor0"
-    EndSection
-
-    Section "Monitor"
-      Identifier "Monitor0"
-      ModelName  "DFP-0"
-    EndSection
-
-    Section "Screen"
-      Identifier   "Screen0"
-      Device       "Tegra0"
-      Monitor      "Monitor0"
-      DefaultDepth 24
-      Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
-      SubSection   "Display"
-        Depth      24
-      EndSubSection
-    EndSection
-
-    Section "ServerLayout"
-      Identifier "Layout0"
-      Screen     "Screen0"
-    EndSection
+  # Override the Device section to use the L4T nvidia driver instead of fbdev.
+  # videoDrivers stays as ["fbdev"] to prevent nixpkgs nvidia package eval,
+  # but the actual driver loaded is nvidia_drv.so from tegra-l4t-libs.
+  services.xserver.deviceSection = ''
+    Driver     "nvidia"
+    Option     "AllowUnofficialGLXProtocol" "true"
+    Option     "DPMS" "false"
+    Option     "AllowEmptyInitialConfiguration" "true"
+    Option     "Monitor-DSI-0" "Monitor[0]"
   '';
+
+  services.xserver.screenSection = ''
+    DefaultDepth 24
+    Option       "metamodes" "DSI-0: nvidia-auto-select @1280x720 +0+0 {ViewPortIn=1280x720, ViewPortOut=720x1280+0+0, Rotation=90}"
+    SubSection   "Display"
+      Depth      24
+    EndSubSection
+  '';
+
+  # Touch coordinate transform for 90° CW rotation.
+  services.xserver.inputClassSections = [''
+    Identifier "touchscreen rotate"
+    MatchProduct "touchscreen"
+    Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
+  ''];
 
   # Tegra proprietary userspace libs (EGL, CUDA, display libs).
   hardware.opengl = {
